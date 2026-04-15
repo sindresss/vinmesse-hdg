@@ -207,11 +207,45 @@ function exportCSV() {
   a.click(); URL.revokeObjectURL(url);
 }
 
+function captureRenderState() {
+  const activeElement = document.activeElement;
+
+  if (activeElement?.classList?.contains("search-input")) {
+    return {
+      type: "search",
+      selectionStart: activeElement.selectionStart ?? SEARCH.length,
+      selectionEnd: activeElement.selectionEnd ?? SEARCH.length
+    };
+  }
+
+  return null;
+}
+
+function restoreRenderState(renderState) {
+  if (!renderState || renderState.type !== "search") {
+    return;
+  }
+
+  const searchInput = document.querySelector(".search-input");
+
+  if (!searchInput) {
+    return;
+  }
+
+  searchInput.focus();
+
+  const selectionStart = Math.min(renderState.selectionStart, searchInput.value.length);
+  const selectionEnd = Math.min(renderState.selectionEnd, searchInput.value.length);
+
+  searchInput.setSelectionRange(selectionStart, selectionEnd);
+}
+
 // --- Render ---
 function render() {
   const stats = getStats();
   const filtered = getFiltered();
   const app = document.getElementById("app");
+  const renderState = captureRenderState();
   app.className = "";
 
   app.innerHTML = `
@@ -262,6 +296,8 @@ function render() {
     <div class="reset-wrap"><button class="reset-btn" onclick="resetAll()">Nullstill all data</button></div>
     <div class="footer">Haut De Gamme AS — Provençal Rosé</div>
   `;
+
+  restoreRenderState(renderState);
 }
 
 function renderStore(store) {
