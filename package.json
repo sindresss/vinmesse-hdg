@@ -1,0 +1,12 @@
+{
+  "name": "vinmesse-hdg",
+  "version": "1.0.0",
+  "description": "Haut De Gamme - Vinmesse Polregistrering",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0"
+  }
+}
