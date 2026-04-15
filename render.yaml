@@ -5,10 +5,11 @@ services:
     plan: free
     buildCommand: npm install
     startCommand: npm start
+    healthCheckPath: /healthz
     envVars:
       - key: NODE_ENV
         value: production
     disk:
       name: data
-      mountPath: /opt/render/project/src
+      mountPath: /data
       sizeGB: 1

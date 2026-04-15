@@ -4,46 +4,82 @@ const path = require("path");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const DATA_DIR = process.env.RENDER ? "/data" : __dirname;
+const PUBLIC_DIR = path.join(__dirname, "public");
+const DATA_DIR = process.env.DATA_DIR || (fs.existsSync("/data") ? "/data" : __dirname);
 const DATA_FILE = path.join(DATA_DIR, "data.json");
 
 app.use(express.json({ limit: "2mb" }));
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(PUBLIC_DIR));
 
-function readData() {
-  try {
-    if (fs.existsSync(DATA_FILE)) {
-      return JSON.parse(fs.readFileSync(DATA_FILE, "utf-8"));
-    }
-  } catch (e) {
-    console.error("Read error:", e);
-  }
+function getDefaultData() {
   return { _v: 0 };
 }
 
-function writeData(data) {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(data), "utf-8");
+function ensureDataDir() {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
-app.get("/api/data", (req, res) => {
-  const data = readData();
-  res.json(data);
+function isPlainObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function readData() {
+  try {
+    ensureDataDir();
+
+    if (fs.existsSync(DATA_FILE)) {
+      const parsed = JSON.parse(fs.readFileSync(DATA_FILE, "utf-8"));
+      return isPlainObject(parsed) ? parsed : getDefaultData();
+    }
+  } catch (error) {
+    console.error("Failed to read data file:", error);
+  }
+
+  return getDefaultData();
+}
+
+function writeData(data) {
+  ensureDataDir();
+  fs.writeFileSync(DATA_FILE, `${JSON.stringify(data, null, 2)}\n`, "utf-8");
+}
+
+app.get("/healthz", function (_req, res) {
+  res.json({ ok: true });
 });
 
-app.post("/api/data", (req, res) => {
-  const current = readData();
-  const incoming = req.body;
-  const merged = { ...current, ...incoming, _v: Date.now() };
-  writeData(merged);
-  res.json(merged);
+app.get("/api/data", function (_req, res) {
+  res.json(readData());
 });
 
-app.delete("/api/data", (req, res) => {
-  const empty = { _v: Date.now() };
-  writeData(empty);
-  res.json(empty);
+app.post("/api/data", function (req, res) {
+  if (!isPlainObject(req.body)) {
+    return res.status(400).json({ error: "Body must be a JSON object." });
+  }
+
+  const currentData = readData();
+  const mergedData = Object.assign({}, currentData, req.body, { _v: Date.now() });
+
+  try {
+    writeData(mergedData);
+    return res.json(mergedData);
+  } catch (error) {
+    console.error("Failed to write data file:", error);
+    return res.status(500).json({ error: "Failed to save data." });
+  }
 });
 
-app.listen(PORT, () => {
-  console.log("Vinmesse HDG running on port " + PORT);
+app.delete("/api/data", function (_req, res) {
+  const emptyData = { _v: Date.now() };
+
+  try {
+    writeData(emptyData);
+    return res.json(emptyData);
+  } catch (error) {
+    console.error("Failed to reset data file:", error);
+    return res.status(500).json({ error: "Failed to reset data." });
+  }
+});
+
+app.listen(PORT, function () {
+  console.log("Running on port " + PORT);
 });
