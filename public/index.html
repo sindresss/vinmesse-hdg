@@ -61,14 +61,6 @@
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
   .sync-label { font-size:10px; color:var(--sync-tx); font-weight:600; letter-spacing:0.04em; }
   .theme-btn { background:rgba(255,255,255,0.1); border:none; border-radius:8px; font-size:18px; cursor:pointer; padding:4px 8px; }
-  .stats { display:flex; justify-content:center; gap:10px; margin-top:12px; flex-wrap:wrap; }
-  .stat-box { background:var(--hdr-stat); border-radius:10px; padding:6px 14px; display:flex; align-items:center; gap:6px; }
-  .stat-label { font-size:13px; color:var(--hdr-sub); font-weight:500; }
-  .stat-num { font-size:18px; font-weight:800; color:var(--hdr-text); }
-  .stat-total { font-size:13px; color:var(--hdr-sub); }
-  .prod-stat { background:var(--hdr-stat); border-radius:10px; padding:5px 10px; text-align:center; }
-  .prod-stat-name { font-size:10px; color:var(--hdr-sub); font-weight:700; text-transform:uppercase; letter-spacing:0.06em; }
-  .prod-stat-row { display:flex; gap:6px; margin-top:3px; justify-content:center; font-size:13px; color:var(--hdr-text); }
   .search-wrap { margin:12px auto 0; max-width:420px; position:relative; }
   .search-input { width:100%; padding:11px 40px 11px 14px; border:2px solid var(--search-bd); border-radius:12px; font-family:'DM Sans',sans-serif; font-size:16px; color:var(--search-tx); background:var(--search-bg); outline:none; -webkit-appearance:none; }
   .search-input::placeholder { color:var(--hdr-sub); opacity:0.7; }
@@ -77,6 +69,124 @@
   .pill { padding:6px 16px; border-radius:22px; font-family:'DM Sans',sans-serif; font-size:13px; font-weight:600; cursor:pointer; border:2px solid var(--pill-off-bd); background:var(--pill-off-bg); color:var(--pill-off-tx); }
   .pill.active { border-color:var(--pill-on-bd); background:var(--pill-on-bg); color:var(--pill-on-tx); }
   .pill-export { border-color:var(--exp-bd)!important; background:var(--exp-bg)!important; color:var(--exp-tx)!important; font-weight:700; }
+  .stats-section { max-width:1040px; margin:18px auto 0; padding:0 16px; }
+  .stats-shell {
+    background:
+      radial-gradient(circle at top right, rgba(212,184,150,0.18), transparent 30%),
+      linear-gradient(180deg, rgba(255,255,255,0.84), rgba(240,233,223,0.92));
+    border:1px solid rgba(107,84,67,0.12);
+    border-radius:24px;
+    padding:18px;
+    box-shadow:0 14px 36px rgba(44,24,16,0.08);
+  }
+  [data-theme="dark"] .stats-shell {
+    background:
+      radial-gradient(circle at top right, rgba(200,168,120,0.12), transparent 30%),
+      linear-gradient(180deg, rgba(46,36,28,0.98), rgba(29,22,17,0.96));
+    border-color:rgba(200,168,120,0.14);
+    box-shadow:0 14px 36px rgba(0,0,0,0.22);
+  }
+  .stats-top {
+    display:grid;
+    grid-template-columns:minmax(0, 1.35fr) minmax(0, 1fr);
+    gap:18px;
+    align-items:start;
+  }
+  .stats-heading { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; }
+  .stats-kicker { font-size:11px; color:var(--foot); text-transform:uppercase; letter-spacing:0.12em; font-weight:700; }
+  .stats-title { margin-top:6px; font-family:'Playfair Display',serif; font-size:28px; line-height:1; color:var(--name); }
+  .stats-copy { margin-top:10px; max-width:44ch; font-size:14px; line-height:1.55; color:var(--cnt-tx); }
+  .stats-pill {
+    padding:8px 12px;
+    border-radius:999px;
+    border:1px solid rgba(107,84,67,0.14);
+    background:rgba(255,255,255,0.62);
+    color:var(--name);
+    font-size:12px;
+    font-weight:700;
+    white-space:nowrap;
+  }
+  [data-theme="dark"] .stats-pill { background:rgba(255,255,255,0.04); border-color:rgba(200,168,120,0.16); color:var(--hdr-text); }
+  .stats-hero {
+    margin-top:18px;
+    display:grid;
+    grid-template-columns:repeat(4, minmax(0, 1fr));
+    gap:12px;
+  }
+  .stats-card {
+    min-width:0;
+    padding:14px 14px 12px;
+    border-radius:18px;
+    background:rgba(255,255,255,0.62);
+    border:1px solid rgba(107,84,67,0.08);
+  }
+  [data-theme="dark"] .stats-card { background:rgba(255,255,255,0.03); border-color:rgba(200,168,120,0.12); }
+  .stats-card-label { font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:var(--foot); font-weight:700; }
+  .stats-card-value { margin-top:8px; font-size:30px; line-height:1; font-weight:800; color:var(--name); }
+  .stats-card-sub { margin-top:8px; font-size:13px; line-height:1.4; color:var(--cnt-tx); }
+  .stats-progress {
+    margin-top:6px;
+    height:10px;
+    border-radius:999px;
+    background:rgba(107,84,67,0.08);
+    overflow:hidden;
+  }
+  .stats-progress > span {
+    display:block;
+    height:100%;
+    border-radius:inherit;
+    background:linear-gradient(90deg, #d4b896, #c49a20);
+  }
+  .stats-distribution {
+    margin-top:18px;
+    padding-top:18px;
+    border-top:1px solid rgba(107,84,67,0.08);
+    display:grid;
+    grid-template-columns:repeat(3, minmax(0, 1fr));
+    gap:14px;
+  }
+  [data-theme="dark"] .stats-distribution { border-top-color:rgba(200,168,120,0.12); }
+  .stats-product { min-width:0; }
+  .stats-product-head { display:flex; justify-content:space-between; gap:10px; align-items:baseline; }
+  .stats-product-name { font-size:14px; font-weight:700; color:var(--name); }
+  .stats-product-total { font-size:12px; color:var(--foot); }
+  .stats-track {
+    margin-top:10px;
+    height:10px;
+    border-radius:999px;
+    overflow:hidden;
+    background:rgba(107,84,67,0.08);
+    display:flex;
+  }
+  .stats-segment { height:100%; }
+  .stats-segment.positive { background:#3da653; }
+  .stats-segment.neutral { background:#c49a20; }
+  .stats-segment.negative { background:#c44040; }
+  .stats-product-meta {
+    margin-top:10px;
+    display:flex;
+    justify-content:space-between;
+    gap:12px;
+    flex-wrap:wrap;
+    font-size:12px;
+    color:var(--cnt-tx);
+  }
+  .stats-product-meta strong { color:var(--name); }
+  .stats-microgrid {
+    display:grid;
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+    gap:12px;
+  }
+  .stats-micro {
+    padding:14px;
+    border-radius:18px;
+    background:rgba(255,255,255,0.44);
+    border:1px solid rgba(107,84,67,0.08);
+  }
+  [data-theme="dark"] .stats-micro { background:rgba(255,255,255,0.03); border-color:rgba(200,168,120,0.12); }
+  .stats-micro-label { font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:var(--foot); font-weight:700; }
+  .stats-micro-value { margin-top:8px; font-size:24px; font-weight:800; color:var(--name); }
+  .stats-micro-note { margin-top:6px; font-size:13px; color:var(--cnt-tx); line-height:1.4; }
   .list { max-width:860px; margin:0 auto; }
   .list-count { padding:8px 16px; font-size:13px; color:var(--cnt-tx); font-weight:600; border-bottom:1px solid var(--row-line); background:var(--cnt-bg); }
   .store-row { border-bottom:1px solid var(--row-line); padding:12px 16px; }
@@ -104,6 +214,16 @@
   .reset-btn { background:transparent; border:1px solid var(--row-line); border-radius:8px; padding:6px 16px; color:var(--foot); font-size:12px; cursor:pointer; font-weight:500; font-family:'DM Sans',sans-serif; }
   .empty { padding:48px 16px; text-align:center; color:var(--cnt-tx); font-size:15px; }
   .loading { min-height:100vh; min-height:100dvh; display:flex; align-items:center; justify-content:center; color:var(--name); font-size:16px; }
+  @media (max-width: 920px) {
+    .stats-top, .stats-hero, .stats-distribution { grid-template-columns:1fr; }
+    .stats-microgrid { grid-template-columns:1fr 1fr; }
+  }
+  @media (max-width: 640px) {
+    .stats-shell { padding:16px; border-radius:20px; }
+    .stats-title { font-size:24px; }
+    .stats-hero, .stats-microgrid { grid-template-columns:1fr 1fr; }
+    .stats-card-value { font-size:26px; }
+  }
 </style>
 </head>
 <body>
@@ -292,12 +412,150 @@ function getFiltered() {
 
 function getStats() {
   const visited = ALL_STORES.filter(hasAny).length;
-  const bp = {};
+  const commented = ALL_STORES.filter(store => !!(DATA[`${store}::comment`] || "").trim()).length;
+  const totals = { positive: 0, neutral: 0, negative: 0 };
+  const products = {};
+  let rated = 0;
+
   PRODUCTS.forEach(p => {
-    bp[p] = {positive:0,neutral:0,negative:0};
-    ALL_STORES.forEach(s => { const r = DATA[`${s}::${p}`]; if(r) bp[p][r]++; });
+    products[p] = { positive: 0, neutral: 0, negative: 0, total: 0 };
+
+    ALL_STORES.forEach(s => {
+      const r = DATA[`${s}::${p}`];
+
+      if (!r) {
+        return;
+      }
+
+      products[p][r] += 1;
+      products[p].total += 1;
+      totals[r] += 1;
+      rated += 1;
+    });
   });
-  return { visited, total:ALL_STORES.length, bp };
+
+  const completionPercent = ALL_STORES.length ? Math.round((visited / ALL_STORES.length) * 100) : 0;
+  const mostSampledProduct = PRODUCTS.reduce((best, current) =>
+    products[current].total > products[best].total ? current : best
+  , PRODUCTS[0]);
+  const leadingMood = Object.entries(totals).sort((a, b) => b[1] - a[1])[0]?.[0] || "neutral";
+
+  return {
+    visited,
+    total: ALL_STORES.length,
+    completionPercent,
+    commented,
+    rated,
+    totals,
+    products,
+    mostSampledProduct,
+    leadingMood
+  };
+}
+
+function getPercent(value, total) {
+  if (!total) {
+    return 0;
+  }
+
+  return Math.round((value / total) * 100);
+}
+
+function getMoodLabel(mood) {
+  return { positive: "Positivt", neutral: "Nøytralt", negative: "Kritisk" }[mood] || "Nøytralt";
+}
+
+function renderStatsSection(stats) {
+  return `
+    <section class="stats-section" aria-label="Statistikkoversikt">
+      <div class="stats-shell">
+        <div class="stats-top">
+          <div>
+            <div class="stats-heading">
+              <div>
+                <div class="stats-kicker">Oversikt</div>
+                <h2 class="stats-title">Status akkurat nå</h2>
+              </div>
+              <div class="stats-pill">Tone: ${getMoodLabel(stats.leadingMood)}</div>
+            </div>
+            <p class="stats-copy">En samlet, rask lesning av dekning, aktivitet og produktrespons. Seksjonen er laget for å kunne skannes på få sekunder på mobil og i stående bruk under messen.</p>
+            <div class="stats-hero">
+              <div class="stats-card">
+                <div class="stats-card-label">Dekning</div>
+                <div class="stats-card-value">${stats.completionPercent}%</div>
+                <div class="stats-progress"><span style="width:${stats.completionPercent}%"></span></div>
+                <div class="stats-card-sub">${stats.visited} av ${stats.total} butikker registrert</div>
+              </div>
+              <div class="stats-card">
+                <div class="stats-card-label">Vurderinger</div>
+                <div class="stats-card-value">${stats.rated}</div>
+                <div class="stats-card-sub">${stats.totals.positive} positive, ${stats.totals.neutral} nøytrale, ${stats.totals.negative} negative</div>
+              </div>
+              <div class="stats-card">
+                <div class="stats-card-label">Kommentarer</div>
+                <div class="stats-card-value">${stats.commented}</div>
+                <div class="stats-card-sub">${getPercent(stats.commented, stats.total)}% av alle butikker har notat</div>
+              </div>
+              <div class="stats-card">
+                <div class="stats-card-label">Mest smakt</div>
+                <div class="stats-card-value">${stats.mostSampledProduct}</div>
+                <div class="stats-card-sub">${stats.products[stats.mostSampledProduct].total} registreringer på dette produktet</div>
+              </div>
+            </div>
+          </div>
+          <div class="stats-microgrid">
+            <div class="stats-micro">
+              <div class="stats-micro-label">Positiv andel</div>
+              <div class="stats-micro-value">${getPercent(stats.totals.positive, stats.rated)}%</div>
+              <div class="stats-micro-note">Andel av alle produktreaksjoner som er registrert som positiv.</div>
+            </div>
+            <div class="stats-micro">
+              <div class="stats-micro-label">Kommentardekning</div>
+              <div class="stats-micro-value">${getPercent(stats.commented, Math.max(stats.visited, 1))}%</div>
+              <div class="stats-micro-note">Hvor mange av de besøkte butikkene som har et faktisk notat.</div>
+            </div>
+            <div class="stats-micro">
+              <div class="stats-micro-label">Mest aktivitet</div>
+              <div class="stats-micro-value">${stats.products[stats.mostSampledProduct].total}</div>
+              <div class="stats-micro-note">${stats.mostSampledProduct} leder i antall smaksregistreringer akkurat nå.</div>
+            </div>
+            <div class="stats-micro">
+              <div class="stats-micro-label">Udekket</div>
+              <div class="stats-micro-value">${stats.total - stats.visited}</div>
+              <div class="stats-micro-note">Butikker som fortsatt ikke har noen registrert aktivitet.</div>
+            </div>
+          </div>
+        </div>
+        <div class="stats-distribution">
+          ${PRODUCTS.map(product => {
+            const productStats = stats.products[product];
+            const positivePercent = getPercent(productStats.positive, productStats.total);
+            const neutralPercent = getPercent(productStats.neutral, productStats.total);
+            const negativePercent = productStats.total ? Math.max(0, 100 - positivePercent - neutralPercent) : 0;
+
+            return `
+              <div class="stats-product">
+                <div class="stats-product-head">
+                  <div class="stats-product-name">${product}</div>
+                  <div class="stats-product-total">${productStats.total} vurderinger</div>
+                </div>
+                <div class="stats-track" aria-hidden="true">
+                  <span class="stats-segment positive" style="width:${positivePercent}%"></span>
+                  <span class="stats-segment neutral" style="width:${neutralPercent}%"></span>
+                  <span class="stats-segment negative" style="width:${negativePercent}%"></span>
+                </div>
+                <div class="stats-product-meta">
+                  <span><strong>😊 ${productStats.positive}</strong> positive</span>
+                  <span><strong>😐 ${productStats.neutral}</strong> nøytrale</span>
+                  <span><strong>😞 ${productStats.negative}</strong> negative</span>
+                </div>
+              </div>
+            `;
+          }).join("")}
+        </div>
+      </div>
+    </section>
+  `;
 }
 
 // --- Actions ---
@@ -472,23 +730,6 @@ function render() {
           <button type="button" class="theme-btn" aria-label="${DARK ? "Bytt til lyst tema" : "Bytt til mørkt tema"}" onclick="toggleTheme()">${DARK?"☀️":"🌙"}</button>
         </div>
       </div>
-      <div class="stats">
-        <div class="stat-box">
-          <span class="stat-label">Besøkt</span>
-          <span class="stat-num">${stats.visited}</span>
-          <span class="stat-total">/ ${stats.total}</span>
-        </div>
-        ${PRODUCTS.map(p=>`
-          <div class="prod-stat">
-            <div class="prod-stat-name">${p}</div>
-            <div class="prod-stat-row">
-              <span>😊 ${stats.bp[p].positive}</span>
-              <span>😐 ${stats.bp[p].neutral}</span>
-              <span>😞 ${stats.bp[p].negative}</span>
-            </div>
-          </div>
-        `).join("")}
-      </div>
       <div class="search-wrap">
         <input class="search-input" type="text" placeholder="Søk etter butikk..." value="${SEARCH}" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" aria-label="Søk etter butikk" oninput="setSearch(this.value)" onkeydown="if(event.key==='Escape'){ clearSearch(); }">
         ${SEARCH?`<button type="button" class="search-clear" aria-label="Tøm søk" onclick="clearSearch()">✕</button>`:""}
@@ -500,6 +741,7 @@ function render() {
         <button type="button" class="pill pill-export" onclick="exportCSV()">⬇ CSV</button>
       </div>
     </div>
+    ${renderStatsSection(stats)}
     <div class="list">
       <div class="list-count">${filtered.length} av ${ALL_STORES.length} butikker</div>
       ${filtered.length === 0 ? `<div class="empty">Ingen butikker funnet for «${SEARCH}»</div>` :
