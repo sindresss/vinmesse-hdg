@@ -7,6 +7,9 @@ const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, "public");
 const DATA_DIR = process.env.DATA_DIR || (fs.existsSync("/data") ? "/data" : __dirname);
 const DATA_FILE = path.join(DATA_DIR, "data.json");
+const VALID_REACTIONS = new Set(["positive", "neutral", "negative"]);
+const RESERVED_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+const MAX_COMMENT_LENGTH = 500;
 
 app.use(express.json({ limit: "2mb" }));
 app.use(express.static(PUBLIC_DIR));
@@ -23,13 +26,67 @@ function isPlainObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
+function normalizeData(data) {
+  const normalized = { _v: isPlainObject(data) && typeof data._v === "number" ? data._v : 0 };
+
+  if (!isPlainObject(data)) {
+    return normalized;
+  }
+
+  for (const [key, value] of Object.entries(data)) {
+    if (key === "_v" || RESERVED_KEYS.has(key)) {
+      continue;
+    }
+
+    if (typeof key !== "string" || key.length === 0 || key.length > 200) {
+      continue;
+    }
+
+    if (key.endsWith("::comment")) {
+      if (typeof value === "string") {
+        const trimmed = value.trim();
+
+        if (trimmed) {
+          normalized[key] = trimmed.slice(0, MAX_COMMENT_LENGTH);
+        }
+      }
+
+      continue;
+    }
+
+    if (VALID_REACTIONS.has(value)) {
+      normalized[key] = value;
+    }
+  }
+
+  return normalized;
+}
+
+function mergeData(currentData, incomingData) {
+  const merged = { _v: Date.now() };
+
+  for (const [key, value] of Object.entries(currentData)) {
+    if (key !== "_v" && !RESERVED_KEYS.has(key)) {
+      merged[key] = value;
+    }
+  }
+
+  for (const [key, value] of Object.entries(incomingData)) {
+    if (key !== "_v" && !RESERVED_KEYS.has(key)) {
+      merged[key] = value;
+    }
+  }
+
+  return normalizeData(merged);
+}
+
 function readData() {
   try {
     ensureDataDir();
 
     if (fs.existsSync(DATA_FILE)) {
       const parsed = JSON.parse(fs.readFileSync(DATA_FILE, "utf-8"));
-      return isPlainObject(parsed) ? parsed : getDefaultData();
+      return normalizeData(parsed);
     }
   } catch (error) {
     console.error("Failed to read data file:", error);
@@ -48,6 +105,7 @@ app.get("/healthz", function (_req, res) {
 });
 
 app.get("/api/data", function (_req, res) {
+  res.set("Cache-Control", "no-store");
   res.json(readData());
 });
 
@@ -57,7 +115,7 @@ app.post("/api/data", function (req, res) {
   }
 
   const currentData = readData();
-  const mergedData = Object.assign({}, currentData, req.body, { _v: Date.now() });
+  const mergedData = mergeData(currentData, req.body);
 
   try {
     writeData(mergedData);

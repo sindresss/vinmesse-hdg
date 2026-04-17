@@ -95,6 +95,10 @@
   .comment-btn { background:transparent; border:1.5px solid var(--cbtn-bd); border-radius:8px; font-size:15px; cursor:pointer; padding:4px 10px; color:var(--cbtn-tx); font-weight:600; }
   .comment-btn.has-comment { background:var(--cbtn-bg); }
   .comment-input { width:100%; padding:9px 14px; border:1.5px solid var(--in-bd); border-radius:10px; font-family:'DM Sans',sans-serif; font-size:14px; color:var(--in-tx); background:var(--in-bg); outline:none; margin-top:10px; -webkit-appearance:none; }
+  .theme-btn:focus-visible, .pill:focus-visible, .emoji-btn:focus-visible, .comment-btn:focus-visible, .reset-btn:focus-visible, .search-clear:focus-visible, .comment-input:focus-visible, .search-input:focus-visible {
+    outline: 2px solid var(--hdr-sub);
+    outline-offset: 2px;
+  }
   .footer { text-align:center; padding:8px 16px 28px; color:var(--foot); font-size:11px; letter-spacing:0.06em; font-weight:500; }
   .reset-wrap { text-align:center; padding:24px 16px 8px; }
   .reset-btn { background:transparent; border:1px solid var(--row-line); border-radius:8px; padding:6px 16px; color:var(--foot); font-size:12px; cursor:pointer; font-weight:500; font-family:'DM Sans',sans-serif; }
@@ -120,6 +124,7 @@ let pollTimer = null;
 let saveTimer = null;
 let syncStateTimer = null;
 let localVersion = 0;
+let dataGeneration = 0;
 const OPEN_COMMENTS = new Set();
 
 function getSystemPrefersDark() {
@@ -141,6 +146,10 @@ function applyTheme(isDark) {
 }
 
 function setSaveState(state) {
+  if (state !== "saved") {
+    clearTimeout(syncStateTimer);
+  }
+
   SAVE_STATE = state;
 
   const syncBadge = document.querySelector(".sync-badge");
@@ -157,6 +166,36 @@ function setSaveState(state) {
 function scheduleSyncedState(delay) {
   clearTimeout(syncStateTimer);
   syncStateTimer = setTimeout(() => setSaveState("synced"), delay);
+}
+
+function markDataChanged() {
+  dataGeneration += 1;
+}
+
+function clearSearch() {
+  if (!SEARCH) {
+    return;
+  }
+
+  SEARCH = "";
+  render();
+}
+
+function startPolling() {
+  if (pollTimer) {
+    return;
+  }
+
+  pollTimer = setInterval(() => {
+    if (!document.hidden) {
+      loadData();
+    }
+  }, 5000);
+}
+
+function stopPolling() {
+  clearInterval(pollTimer);
+  pollTimer = null;
 }
 
 // --- API ---
@@ -183,15 +222,30 @@ async function loadData() {
 function saveData() {
   clearTimeout(saveTimer);
   setSaveState("saving");
+  const generation = dataGeneration;
   saveTimer = setTimeout(async () => {
+    const snapshot = Object.assign({}, DATA);
+
     try {
-      DATA._v = Date.now();
-      localVersion = DATA._v;
-      const r = await fetch("/api/data", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(DATA) });
+      const r = await fetch("/api/data", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(snapshot) });
       const d = await r.json();
-      localVersion = d._v;
-      setSaveState("saved");
-      scheduleSyncedState(1200);
+
+      if (!r.ok) {
+        throw new Error(d?.error || "Failed to save data.");
+      }
+
+      if (typeof d._v === "number" && d._v > localVersion) {
+        localVersion = d._v;
+      }
+
+      if (generation === dataGeneration) {
+        DATA = d;
+        render();
+        setSaveState("saved");
+        scheduleSyncedState(1200);
+      } else {
+        setSaveState("saving");
+      }
     } catch(e) {
       console.error("Save failed:", e);
       setSaveState("error");
@@ -205,8 +259,14 @@ async function resetAll() {
     setSaveState("saving");
     const r = await fetch("/api/data", { method:"DELETE" });
     const d = await r.json();
+
+    if (!r.ok) {
+      throw new Error(d?.error || "Failed to reset data.");
+    }
+
     DATA = d;
     localVersion = d._v;
+    dataGeneration += 1;
     OPEN_COMMENTS.clear();
     render();
     setSaveState("saved");
@@ -243,12 +303,25 @@ function getStats() {
 // --- Actions ---
 function toggleReaction(store, product, reaction) {
   const key = `${store}::${product}`;
-  DATA[key] = DATA[key] === reaction ? null : reaction;
-  saveData(); render();
+  const nextValue = DATA[key] === reaction ? null : reaction;
+
+  if (DATA[key] === nextValue) {
+    return;
+  }
+
+  DATA[key] = nextValue;
+  markDataChanged();
+  saveData();
+  render();
 }
 
 function setComment(store, value) {
+  if (DATA[`${store}::comment`] === value) {
+    return;
+  }
+
   DATA[`${store}::comment`] = value;
+  markDataChanged();
   syncCommentButton(store);
   saveData();
 }
@@ -390,13 +463,13 @@ function render() {
   app.innerHTML = `
     <div class="header">
       <div class="header-row">
-        <div style="flex:1"><div class="sync-badge" data-state="${SAVE_STATE}"><span class="sync-dot"></span><span class="sync-label">${SAVE_STATE_LABELS[SAVE_STATE] || SAVE_STATE_LABELS.synced}</span></div></div>
+        <div style="flex:1"><div class="sync-badge" data-state="${SAVE_STATE}" role="status" aria-live="polite"><span class="sync-dot"></span><span class="sync-label">${SAVE_STATE_LABELS[SAVE_STATE] || SAVE_STATE_LABELS.synced}</span></div></div>
         <div>
           <h1>HAUT DE GAMME</h1>
           <div class="sub">Vinmesse — Polregistrering</div>
         </div>
         <div style="flex:1;display:flex;justify-content:flex-end">
-          <button class="theme-btn" onclick="toggleTheme()">${DARK?"☀️":"🌙"}</button>
+          <button type="button" class="theme-btn" aria-label="${DARK ? "Bytt til lyst tema" : "Bytt til mørkt tema"}" onclick="toggleTheme()">${DARK?"☀️":"🌙"}</button>
         </div>
       </div>
       <div class="stats">
@@ -417,14 +490,14 @@ function render() {
         `).join("")}
       </div>
       <div class="search-wrap">
-        <input class="search-input" type="text" placeholder="Søk etter butikk..." value="${SEARCH}" oninput="setSearch(this.value)">
-        ${SEARCH?`<button class="search-clear" onclick="setSearch('');document.querySelector('.search-input').value=''">✕</button>`:""}
+        <input class="search-input" type="text" placeholder="Søk etter butikk..." value="${SEARCH}" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" aria-label="Søk etter butikk" oninput="setSearch(this.value)" onkeydown="if(event.key==='Escape'){ clearSearch(); }">
+        ${SEARCH?`<button type="button" class="search-clear" aria-label="Tøm søk" onclick="clearSearch()">✕</button>`:""}
       </div>
       <div class="filters">
         ${[{k:"all",l:"Alle"},{k:"visited",l:"Besøkt"},{k:"unvisited",l:"Ikke besøkt"}].map(f=>
-          `<button class="pill ${FILTER===f.k?"active":""}" onclick="setFilter('${f.k}')">${f.l}</button>`
+          `<button type="button" class="pill ${FILTER===f.k?"active":""}" aria-pressed="${FILTER===f.k}" onclick="setFilter('${f.k}')">${f.l}</button>`
         ).join("")}
-        <button class="pill pill-export" onclick="exportCSV()">⬇ CSV</button>
+        <button type="button" class="pill pill-export" onclick="exportCSV()">⬇ CSV</button>
       </div>
     </div>
     <div class="list">
@@ -432,7 +505,7 @@ function render() {
       ${filtered.length === 0 ? `<div class="empty">Ingen butikker funnet for «${SEARCH}»</div>` :
         filtered.map(store => renderStore(store)).join("")}
     </div>
-    <div class="reset-wrap"><button class="reset-btn" onclick="resetAll()">Nullstill all data</button></div>
+    <div class="reset-wrap"><button type="button" class="reset-btn" onclick="resetAll()">Nullstill all data</button></div>
     <div class="footer">Haut De Gamme AS — Provençal Rosé</div>
   `;
 
@@ -455,15 +528,15 @@ function renderStore(store) {
               ${RX.map(r => {
                 const sel = cur === r.key;
                 const cls = sel ? `sel-${r.key}` : (cur ? "dimmed" : "");
-                return `<button class="emoji-btn ${cls}" title="${r.label}" onclick="toggleReaction('${store.replace(/'/g,"\\'")}','${product}','${r.key}')">${r.emoji}</button>`;
+                return `<button type="button" class="emoji-btn ${cls}" title="${r.label}" aria-label="${store}: ${product} ${r.label}" aria-pressed="${sel}" onclick="toggleReaction('${store.replace(/'/g,"\\'")}','${product}','${r.key}')">${r.emoji}</button>`;
               }).join("")}
             </div>`;
           }).join("")}
         </div>
-        <button id="comment-btn-${sid}" class="comment-btn ${hasComment?"has-comment":""}" onclick="toggleComment('${store.replace(/'/g,"\\'")}')">${hasComment?"💬":"＋💬"}</button>
+        <button type="button" id="comment-btn-${sid}" class="comment-btn ${hasComment?"has-comment":""}" aria-expanded="${OPEN_COMMENTS.has(store)}" aria-controls="cmt-${sid}" onclick="toggleComment('${store.replace(/'/g,"\\'")}')">${hasComment?"💬":"＋💬"}</button>
       </div>
       <div id="cmt-${sid}" style="display:${OPEN_COMMENTS.has(store) ? "block" : "none"}">
-        <input class="comment-input" data-store="${sid}" type="text" value="${comment.replace(/"/g,"&quot;")}" placeholder="Skriv kommentar..." oninput="setComment('${store.replace(/'/g,"\\'")}',this.value)">
+        <input class="comment-input" data-store="${sid}" type="text" value="${comment.replace(/"/g,"&quot;")}" placeholder="Skriv kommentar..." aria-label="Kommentar for ${store}" oninput="setComment('${store.replace(/'/g,"\\'")}',this.value)" onkeydown="if(event.key==='Escape'){ toggleComment('${store.replace(/'/g,"\\'")}'); }">
       </div>
     </div>
   `;
@@ -475,7 +548,16 @@ function renderStore(store) {
   applyTheme(storedTheme ? storedTheme === "dark" : getSystemPrefersDark());
   await loadData();
   render();
-  pollTimer = setInterval(loadData, 5000);
+  startPolling();
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      stopPolling();
+      return;
+    }
+
+    loadData();
+    startPolling();
+  });
   window.matchMedia("(prefers-color-scheme:dark)").addEventListener("change", e => {
     if (getStoredTheme()) {
       return;
