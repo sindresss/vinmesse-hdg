@@ -110,10 +110,29 @@ const RX = [{key:"positive",emoji:"😊",label:"Positiv"},{key:"neutral",emoji:"
 let DATA = {};
 let FILTER = "all";
 let SEARCH = "";
-let DARK = window.matchMedia?.("(prefers-color-scheme:dark)").matches ?? false;
+const THEME_KEY = "vinmesse-theme";
+let DARK = false;
 let pollTimer = null;
 let saveTimer = null;
 let localVersion = 0;
+
+function getSystemPrefersDark() {
+  return window.matchMedia?.("(prefers-color-scheme:dark)").matches ?? false;
+}
+
+function getStoredTheme() {
+  try {
+    return localStorage.getItem(THEME_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function applyTheme(isDark) {
+  DARK = isDark;
+  document.documentElement.setAttribute("data-theme", DARK ? "dark" : "light");
+  document.querySelector('meta[name="theme-color"]').content = DARK ? "#1a1410" : "#2c1810";
+}
 
 // --- API ---
 async function loadData() {
@@ -183,9 +202,11 @@ function setComment(store, value) {
 }
 
 function toggleTheme() {
-  DARK = !DARK;
-  document.documentElement.setAttribute("data-theme", DARK ? "dark" : "light");
-  document.querySelector('meta[name="theme-color"]').content = DARK ? "#1a1410" : "#2c1810";
+  applyTheme(!DARK);
+  try {
+    localStorage.setItem(THEME_KEY, DARK ? "dark" : "light");
+  } catch {}
+  render();
 }
 
 function setFilter(f) { FILTER = f; render(); }
@@ -331,11 +352,19 @@ function renderStore(store) {
 
 // --- Init ---
 (async function init() {
-  if (DARK) document.documentElement.setAttribute("data-theme","dark");
+  const storedTheme = getStoredTheme();
+  applyTheme(storedTheme ? storedTheme === "dark" : getSystemPrefersDark());
   await loadData();
   render();
   pollTimer = setInterval(loadData, 5000);
-  window.matchMedia("(prefers-color-scheme:dark)").addEventListener("change", e => { DARK=e.matches; document.documentElement.setAttribute("data-theme",DARK?"dark":"light"); render(); });
+  window.matchMedia("(prefers-color-scheme:dark)").addEventListener("change", e => {
+    if (getStoredTheme()) {
+      return;
+    }
+
+    applyTheme(e.matches);
+    render();
+  });
 })();
 </script>
 </body>
