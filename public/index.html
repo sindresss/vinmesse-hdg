@@ -54,8 +54,10 @@
   .header-row { display:flex; justify-content:space-between; align-items:flex-start; }
   .header h1 { font-family:'Playfair Display',serif; font-size:22px; font-weight:800; color:var(--hdr-text); letter-spacing:0.02em; }
   .header .sub { font-size:11px; color:var(--hdr-sub); margin-top:3px; letter-spacing:0.15em; text-transform:uppercase; font-weight:600; }
-  .sync-badge { display:flex; align-items:center; gap:6px; padding-top:4px; }
+  .sync-badge { display:flex; align-items:center; gap:6px; padding-top:4px; min-width:68px; }
   .sync-dot { width:8px; height:8px; border-radius:50%; background:var(--sync-dot); box-shadow:0 0 6px var(--sync-dot); animation:pulse 2s infinite; }
+  .sync-badge[data-state="saving"] .sync-dot { background:var(--sel-neu-bd); box-shadow:0 0 6px var(--sel-neu-bd); }
+  .sync-badge[data-state="error"] .sync-dot { background:var(--sel-neg-bd); box-shadow:0 0 6px var(--sel-neg-bd); }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
   .sync-label { font-size:10px; color:var(--sync-tx); font-weight:600; letter-spacing:0.04em; }
   .theme-btn { background:rgba(255,255,255,0.1); border:none; border-radius:8px; font-size:18px; cursor:pointer; padding:4px 8px; }
@@ -111,10 +113,14 @@ let DATA = {};
 let FILTER = "all";
 let SEARCH = "";
 const THEME_KEY = "vinmesse-theme";
+const SAVE_STATE_LABELS = { synced: "DELT", saving: "LAGRER", saved: "LAGRET", error: "FEIL" };
 let DARK = false;
+let SAVE_STATE = "synced";
 let pollTimer = null;
 let saveTimer = null;
+let syncStateTimer = null;
 let localVersion = 0;
+const OPEN_COMMENTS = new Set();
 
 function getSystemPrefersDark() {
   return window.matchMedia?.("(prefers-color-scheme:dark)").matches ?? false;
@@ -134,18 +140,49 @@ function applyTheme(isDark) {
   document.querySelector('meta[name="theme-color"]').content = DARK ? "#1a1410" : "#2c1810";
 }
 
+function setSaveState(state) {
+  SAVE_STATE = state;
+
+  const syncBadge = document.querySelector(".sync-badge");
+  const syncLabel = syncBadge?.querySelector(".sync-label");
+
+  if (!syncBadge || !syncLabel) {
+    return;
+  }
+
+  syncBadge.dataset.state = state;
+  syncLabel.textContent = SAVE_STATE_LABELS[state] || SAVE_STATE_LABELS.synced;
+}
+
+function scheduleSyncedState(delay) {
+  clearTimeout(syncStateTimer);
+  syncStateTimer = setTimeout(() => setSaveState("synced"), delay);
+}
+
 // --- API ---
 async function loadData() {
   try {
     const r = await fetch("/api/data");
     const d = await r.json();
-    if (d._v && d._v > localVersion) { localVersion = d._v; DATA = d; render(); }
-    else if (!localVersion) { DATA = d; render(); }
-  } catch(e) { console.error("Load failed:", e); }
+    if (d._v && d._v > localVersion) {
+      localVersion = d._v;
+      DATA = d;
+      render();
+      setSaveState("synced");
+    } else if (!localVersion) {
+      DATA = d;
+      render();
+      setSaveState("synced");
+    }
+  } catch(e) {
+    console.error("Load failed:", e);
+    setSaveState("error");
+  }
 }
 
 function saveData() {
   clearTimeout(saveTimer);
+  setSaveState("saving");
   saveTimer = setTimeout(async () => {
     try {
       DATA._v = Date.now();
@@ -153,17 +190,31 @@ function saveData() {
       const r = await fetch("/api/data", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(DATA) });
       const d = await r.json();
       localVersion = d._v;
-    } catch(e) { console.error("Save failed:", e); }
+      setSaveState("saved");
+      scheduleSyncedState(1200);
+    } catch(e) {
+      console.error("Save failed:", e);
+      setSaveState("error");
+    }
   }, 300);
 }
 
 async function resetAll() {
   if (!confirm("Er du sikker på at du vil slette ALL data? Dette kan ikke angres.")) return;
   try {
+    setSaveState("saving");
     const r = await fetch("/api/data", { method:"DELETE" });
     const d = await r.json();
-    DATA = d; localVersion = d._v; render();
-  } catch(e) { console.error("Reset failed:", e); }
+    DATA = d;
+    localVersion = d._v;
+    OPEN_COMMENTS.clear();
+    render();
+    setSaveState("saved");
+    scheduleSyncedState(1200);
+  } catch(e) {
+    console.error("Reset failed:", e);
+    setSaveState("error");
+  }
 }
 
 // --- State helpers ---
@@ -198,6 +249,7 @@ function toggleReaction(store, product, reaction) {
 
 function setComment(store, value) {
   DATA[`${store}::comment`] = value;
+  syncCommentButton(store);
   saveData();
 }
 
@@ -209,8 +261,46 @@ function toggleTheme() {
   render();
 }
 
-function setFilter(f) { FILTER = f; render(); }
-function setSearch(v) { SEARCH = v; render(); }
+function setFilter(f) {
+  if (FILTER === f) {
+    return;
+  }
+
+  FILTER = f;
+  render();
+}
+
+function setSearch(v) {
+  if (SEARCH === v) {
+    return;
+  }
+
+  SEARCH = v;
+  render();
+}
+
+function toggleComment(store) {
+  if (OPEN_COMMENTS.has(store)) {
+    OPEN_COMMENTS.delete(store);
+  } else {
+    OPEN_COMMENTS.add(store);
+  }
+
+  render();
+}
+
+function syncCommentButton(store) {
+  const sid = store.replace(/[^a-zA-Z0-9]/g,"_");
+  const commentButton = document.getElementById(`comment-btn-${sid}`);
+
+  if (!commentButton) {
+    return;
+  }
+
+  const hasComment = !!(DATA[`${store}::comment`] || "").trim();
+  commentButton.classList.toggle("has-comment", hasComment);
+  commentButton.textContent = hasComment ? "💬" : "＋💬";
+}
 
 function exportCSV() {
   const hdr = ["Butikk",...PRODUCTS.flatMap(p=>[`${p} - Smakt`,`${p} - Reaksjon`]),"Kommentar"];
@@ -239,26 +329,54 @@ function captureRenderState() {
     };
   }
 
+  if (activeElement?.classList?.contains("comment-input")) {
+    return {
+      type: "comment",
+      store: activeElement.dataset.store ?? "",
+      selectionStart: activeElement.selectionStart ?? activeElement.value.length,
+      selectionEnd: activeElement.selectionEnd ?? activeElement.value.length
+    };
+  }
+
   return null;
 }
 
 function restoreRenderState(renderState) {
-  if (!renderState || renderState.type !== "search") {
+  if (!renderState) {
     return;
   }
 
-  const searchInput = document.querySelector(".search-input");
+  if (renderState.type === "search") {
+    const searchInput = document.querySelector(".search-input");
 
-  if (!searchInput) {
+    if (!searchInput) {
+      return;
+    }
+
+    searchInput.focus();
+
+    const selectionStart = Math.min(renderState.selectionStart, searchInput.value.length);
+    const selectionEnd = Math.min(renderState.selectionEnd, searchInput.value.length);
+
+    searchInput.setSelectionRange(selectionStart, selectionEnd);
     return;
   }
 
-  searchInput.focus();
+  if (renderState.type === "comment") {
+    const commentInput = document.querySelector(`.comment-input[data-store="${renderState.store}"]`);
 
-  const selectionStart = Math.min(renderState.selectionStart, searchInput.value.length);
-  const selectionEnd = Math.min(renderState.selectionEnd, searchInput.value.length);
+    if (!commentInput) {
+      return;
+    }
 
-  searchInput.setSelectionRange(selectionStart, selectionEnd);
+    const selectionStart = Math.min(renderState.selectionStart, commentInput.value.length);
+    const selectionEnd = Math.min(renderState.selectionEnd, commentInput.value.length);
+
+    requestAnimationFrame(() => {
+      commentInput.focus();
+      commentInput.setSelectionRange(selectionStart, selectionEnd);
+    });
+  }
 }
 
 // --- Render ---
@@ -272,7 +390,7 @@ function render() {
   app.innerHTML = `
     <div class="header">
       <div class="header-row">
-        <div style="flex:1"><div class="sync-badge"><span class="sync-dot"></span><span class="sync-label">DELT</span></div></div>
+        <div style="flex:1"><div class="sync-badge" data-state="${SAVE_STATE}"><span class="sync-dot"></span><span class="sync-label">${SAVE_STATE_LABELS[SAVE_STATE] || SAVE_STATE_LABELS.synced}</span></div></div>
         <div>
           <h1>HAUT DE GAMME</h1>
           <div class="sub">Vinmesse — Polregistrering</div>
@@ -323,6 +441,7 @@ function render() {
 
 function renderStore(store) {
   const comment = DATA[`${store}::comment`] || "";
+  const hasComment = !!comment.trim();
   const sid = store.replace(/[^a-zA-Z0-9]/g,"_");
   return `
     <div class="store-row">
@@ -341,10 +460,10 @@ function renderStore(store) {
             </div>`;
           }).join("")}
         </div>
-        <button class="comment-btn ${comment?"has-comment":""}" onclick="document.getElementById('cmt-${sid}').style.display=document.getElementById('cmt-${sid}').style.display==='none'?'block':'none'">${comment?"💬":"＋💬"}</button>
+        <button id="comment-btn-${sid}" class="comment-btn ${hasComment?"has-comment":""}" onclick="toggleComment('${store.replace(/'/g,"\\'")}')">${hasComment?"💬":"＋💬"}</button>
       </div>
-      <div id="cmt-${sid}" style="display:none">
-        <input class="comment-input" type="text" value="${comment.replace(/"/g,"&quot;")}" placeholder="Skriv kommentar..." oninput="setComment('${store.replace(/'/g,"\\'")}',this.value)">
+      <div id="cmt-${sid}" style="display:${OPEN_COMMENTS.has(store) ? "block" : "none"}">
+        <input class="comment-input" data-store="${sid}" type="text" value="${comment.replace(/"/g,"&quot;")}" placeholder="Skriv kommentar..." oninput="setComment('${store.replace(/'/g,"\\'")}',this.value)">
       </div>
     </div>
   `;
